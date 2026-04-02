@@ -1,0 +1,43 @@
+# Build output
+build/
+out/
+target/
+*.class
+*.jar
+*.war
+
+# Gradle
+.gradle/
+backend/.gradle/
+backend/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs
+logs/
+*.log
+
+# Environment / secrets
+.env
+.env.*
+*.env
+application-local.yml
+
+# macOS
+.DS_Store
+
+# Docker volumes
+postgres_data/
+rabbitmq_data/
+minio_data/
+ollama_data/
