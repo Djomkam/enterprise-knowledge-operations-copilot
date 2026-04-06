@@ -10,6 +10,7 @@ import io.innovation.ekoc.chat.dto.ChatResponse;
 import io.innovation.ekoc.memory.service.MemoryService;
 import io.innovation.ekoc.retrieval.dto.SearchResult;
 import io.innovation.ekoc.users.repository.UserRepository;
+import io.innovation.ekoc.retrieval.dto.SearchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
