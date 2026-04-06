@@ -66,3 +66,41 @@ export interface Citation {
   snippet: string
   relevanceScore: number
 }
+
+export interface PagedResponse<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+  first: boolean
+  last: boolean
+}
+
+export interface Conversation {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ConversationMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  createdAt: string
+}
+
+export interface AuditEvent {
+  id: string
+  userId?: string
+  username: string
+  action: string
+  resource: string
+  resourceId?: string
+  details?: string
+  ipAddress?: string
+  success: boolean
+  errorMessage?: string
+  createdAt: string
+}

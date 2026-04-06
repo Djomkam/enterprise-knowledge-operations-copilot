@@ -7,12 +7,16 @@ import io.innovation.ekoc.ai.agent.RetrieverAgent;
 import io.innovation.ekoc.ai.service.AIOrchestrationService;
 import io.innovation.ekoc.chat.dto.ChatRequest;
 import io.innovation.ekoc.chat.dto.ChatResponse;
+import io.innovation.ekoc.memory.service.MemoryService;
+import io.innovation.ekoc.retrieval.dto.SearchResult;
+import io.innovation.ekoc.users.repository.UserRepository;
 import io.innovation.ekoc.retrieval.dto.SearchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -23,11 +27,18 @@ public class AIOrchestrationServiceImpl implements AIOrchestrationService {
     private final RetrieverAgent retrieverAgent;
     private final PolicyAgent policyAgent;
     private final AnswerComposer answerComposer;
+    private final MemoryService memoryService;
+    private final UserRepository userRepository;
 
     @Override
     public ChatResponse processChat(ChatRequest request, String userId) {
         String query = request.getMessage();
         log.info("Processing chat for user={} query={}", userId, query);
+
+        // Resolve username once for memory lookup
+        String username = userRepository.findById(UUID.fromString(userId))
+                .map(u -> u.getUsername())
+                .orElse(null);
 
         // Step 1: Plan — determine if retrieval is needed
         PlannerAgent.RetrievalPlan plan = plannerAgent.plan(query, userId);
@@ -43,21 +54,25 @@ public class AIOrchestrationServiceImpl implements AIOrchestrationService {
         List<SearchResult> filtered = policyAgent.filter(context, userId);
         log.debug("After policy filter: {}/{} results retained", filtered.size(), context.size());
 
-        // Step 4: Compose — generate grounded answer with citations
-        ChatResponse response = answerComposer.compose(
-                query,
-                filtered,
-                request.getConversationId() != null ? buildHistoryHint(request) : null);
+        // Step 4: Build memory context — inject relevant long-term memories as conversation history
+        String memoryContext = null;
+        if (username != null) {
+            try {
+                memoryContext = memoryService.buildContextString(username, query);
+                if (memoryContext != null) {
+                    log.debug("Memory context injected ({} chars) for user={}", memoryContext.length(), username);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load memory context for user={}: {}", username, e.getMessage());
+            }
+        }
+
+        // Step 5: Compose — generate grounded answer with citations, enriched by memory context
+        ChatResponse response = answerComposer.compose(query, filtered, memoryContext);
 
         log.info("Chat response composed: {} chars, {} citations",
                 response.getContent().length(), response.getCitations() != null ? response.getCitations().size() : 0);
 
         return response;
-    }
-
-    private String buildHistoryHint(ChatRequest request) {
-        // Conversation history is prepended by ChatService before calling this method.
-        // Returning null here so the composer doesn't double-include it.
-        return null;
     }
 }
