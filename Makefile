@@ -22,7 +22,7 @@ infra-down: ## Stop infrastructure services
 
 backend-up: ## Start backend application
 	@echo "Starting backend..."
-	cd backend && ./gradlew bootRun --args='--spring.profiles.active=local'
+	./gradlew :backend:bootRun --args='--spring.profiles.active=local'
 
 frontend-up: ## Start frontend application
 	@echo "Starting frontend..."
@@ -45,7 +45,7 @@ docker-down: ## Stop all Docker Compose services
 
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
-	cd backend && ./gradlew clean
+	./gradlew :backend:clean
 	cd frontend && rm -rf node_modules dist
 	@echo "Clean complete!"
 
@@ -58,10 +58,10 @@ logs: ## Show logs from infrastructure services
 	cd infra && docker compose logs -f
 
 test-backend: ## Run backend tests
-	cd backend && ./gradlew test
+	./gradlew :backend:test
 
 build-backend: ## Build backend JAR
-	cd backend && ./gradlew build
+	./gradlew :backend:build
 
 build-frontend: ## Build frontend
 	cd frontend && npm run build

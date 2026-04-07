@@ -1,6 +1,7 @@
 package io.innovation.ekoc.ingestion.processor;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,7 @@ public class PdfDocumentProcessor implements DocumentProcessor {
     @Override
     public String extract(InputStream inputStream) throws IOException {
         log.debug("Extracting text from PDF");
-        try (PDDocument document = PDDocument.load(inputStream)) {
+        try (PDDocument document = Loader.loadPDF(inputStream.readAllBytes())) {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
             String text = stripper.getText(document);
