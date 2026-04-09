@@ -1,0 +1,2 @@
+// Root project — orchestrates subprojects.
+// Backend-specific build config lives in backend/build.gradle.

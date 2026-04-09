@@ -14,19 +14,21 @@ import java.util.List;
 @AllArgsConstructor
 public class PagedResponse<T> {
     private List<T> content;
-    private int pageNumber;
-    private int pageSize;
+    private int number;
+    private int size;
     private long totalElements;
     private int totalPages;
+    private boolean first;
     private boolean last;
 
     public static <T> PagedResponse<T> of(Page<T> page) {
         return PagedResponse.<T>builder()
                 .content(page.getContent())
-                .pageNumber(page.getNumber())
-                .pageSize(page.getSize())
+                .number(page.getNumber())
+                .size(page.getSize())
                 .totalElements(page.getTotalElements())
                 .totalPages(page.getTotalPages())
+                .first(page.isFirst())
                 .last(page.isLast())
                 .build();
     }

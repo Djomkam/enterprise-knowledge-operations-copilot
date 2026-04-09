@@ -1,0 +1,3 @@
+rootProject.name = 'enterprise-knowledge-operations-copilot'
+
+include 'backend'

@@ -18,4 +18,5 @@ public class SearchRequest {
     private Double similarityThreshold;
     private List<UUID> documentIds;
     private List<UUID> teamIds;
+    private UUID userId;
 }

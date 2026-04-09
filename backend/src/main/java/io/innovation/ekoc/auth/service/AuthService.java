@@ -1,5 +1,7 @@
 package io.innovation.ekoc.auth.service;
 
+import io.innovation.ekoc.audit.annotation.Auditable;
+import io.innovation.ekoc.audit.domain.AuditAction;
 import io.innovation.ekoc.auth.dto.LoginRequest;
 import io.innovation.ekoc.auth.dto.LoginResponse;
 import io.innovation.ekoc.auth.dto.RegisterRequest;
@@ -30,6 +32,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
+    @Auditable(action = AuditAction.REGISTER, resource = "User")
     @Transactional
     public LoginResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -65,6 +68,7 @@ public class AuthService {
                 .build();
     }
 
+    @Auditable(action = AuditAction.LOGIN, resource = "User")
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(

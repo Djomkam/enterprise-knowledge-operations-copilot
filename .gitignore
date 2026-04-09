@@ -11,6 +11,10 @@ target/
 backend/.gradle/
 backend/build/
 
+.java-version
+.gitattributes
+.claude
+
 # IDE
 .idea/
 *.iml

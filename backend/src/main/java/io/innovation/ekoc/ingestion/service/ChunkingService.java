@@ -54,8 +54,12 @@ public class ChunkingService {
                 chunks.add(chunk);
             }
 
+            if (end >= length) {
+                break; // Reached end of text; stop to avoid infinite overlap loop
+            }
+
             start = end - overlap;
-            if (start <= 0 || start >= length) {
+            if (start <= 0) {
                 break;
             }
         }

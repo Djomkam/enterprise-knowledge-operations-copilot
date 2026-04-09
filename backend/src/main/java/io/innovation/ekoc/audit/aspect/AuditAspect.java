@@ -12,6 +12,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 @Slf4j
 @Aspect
@@ -46,7 +47,7 @@ public class AuditAspect {
     private String extractResourceId(Object[] args) {
         if (args == null) return null;
         for (Object arg : args) {
-            if (arg instanceof java.util.UUID) return arg.toString();
+            if (arg instanceof UUID) return arg.toString();
             if (arg instanceof String s && isUuid(s)) return s;
         }
         return null;
@@ -54,7 +55,7 @@ public class AuditAspect {
 
     private boolean isUuid(String s) {
         try {
-            java.util.UUID.fromString(s);
+            UUID.fromString(s);
             return true;
         } catch (IllegalArgumentException e) {
             return false;

@@ -61,6 +61,9 @@ public class ChatService {
                 citationsJson,
                 aiResponse.getTokensUsed());
 
+        // Compress history if the conversation is long (async-safe, same transaction)
+        conversationService.compressHistoryIfNeeded(conversation.getId());
+
         return ChatResponse.builder()
                 .conversationId(conversation.getId())
                 .messageId(savedMessage.getId())
@@ -68,6 +71,29 @@ public class ChatService {
                 .citations(aiResponse.getCitations())
                 .tokensUsed(aiResponse.getTokensUsed())
                 .build();
+    }
+
+    /**
+     * Prepare a streaming session: create/get the conversation, save the user message.
+     * Call {@link #finalizeStream} when the full assistant response is available.
+     */
+    @Transactional
+    public StreamSession prepareStream(ChatRequest request, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        Conversation conversation = conversationService.getOrCreate(
+                request.getConversationId(), user, request.getMessage());
+        conversationService.saveMessage(conversation, MessageRole.USER, request.getMessage(), null, null);
+        return new StreamSession(conversation.getId(), conversation);
+    }
+
+    /**
+     * Persist the completed assistant response after the SSE stream closes.
+     */
+    @Transactional
+    public void finalizeStream(StreamSession session, String content) {
+        conversationService.saveMessage(session.conversation(), MessageRole.ASSISTANT, content, null, null);
+        log.debug("Stream finalized for conversation={}, {} chars saved", session.conversationId(), content.length());
     }
 
     private String serializeCitations(List<ChatResponse.Citation> citations) {
@@ -79,4 +105,6 @@ public class ChatService {
             return null;
         }
     }
+
+    public record StreamSession(java.util.UUID conversationId, Conversation conversation) {}
 }

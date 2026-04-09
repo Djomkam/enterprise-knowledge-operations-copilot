@@ -8,6 +8,7 @@ import io.innovation.ekoc.retrieval.dto.SearchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AnswerComposerImpl implements AnswerComposer {
 
-    private static final String SYSTEM_PROMPT = """
+    private static final String DEFAULT_SYSTEM_PROMPT = """
             You are a helpful enterprise knowledge assistant. Answer the user's question
             using ONLY the provided context documents. Follow these rules:
 
@@ -31,21 +32,21 @@ public class AnswerComposerImpl implements AnswerComposer {
     private final ChatModelClient chatModelClient;
 
     @Override
-    public ChatResponse compose(String query, List<SearchResult> context, String conversationHistory) {
+    public ChatResponse compose(String query, List<SearchResult> context,
+                                String conversationHistory, String systemPromptOverride) {
         log.debug("Composing answer from {} context chunks", context.size());
+
+        String systemPrompt = systemPromptOverride != null && !systemPromptOverride.isBlank()
+                ? systemPromptOverride : DEFAULT_SYSTEM_PROMPT;
 
         String contextBlock = buildContextBlock(context);
         String userContent = buildUserContent(query, contextBlock, conversationHistory);
 
         List<ChatCompletionRequest.ChatMessage> messages = new ArrayList<>();
-        messages.add(ChatCompletionRequest.ChatMessage.builder()
-                .role("system").content(SYSTEM_PROMPT).build());
-        messages.add(ChatCompletionRequest.ChatMessage.builder()
-                .role("user").content(userContent).build());
+        messages.add(ChatCompletionRequest.ChatMessage.builder().role("system").content(systemPrompt).build());
+        messages.add(ChatCompletionRequest.ChatMessage.builder().role("user").content(userContent).build());
 
-        var completionRequest = ChatCompletionRequest.builder().messages(messages).build();
-        var completion = chatModelClient.complete(completionRequest);
-
+        var completion = chatModelClient.complete(ChatCompletionRequest.builder().messages(messages).build());
         List<ChatResponse.Citation> citations = extractCitations(completion.getContent(), context);
 
         return ChatResponse.builder()
@@ -55,10 +56,26 @@ public class AnswerComposerImpl implements AnswerComposer {
                 .build();
     }
 
+    @Override
+    public Flux<String> streamCompose(String query, List<SearchResult> context,
+                                      String conversationHistory, String systemPromptOverride) {
+        log.debug("Streaming answer from {} context chunks", context.size());
+
+        String systemPrompt = systemPromptOverride != null && !systemPromptOverride.isBlank()
+                ? systemPromptOverride : DEFAULT_SYSTEM_PROMPT;
+
+        String contextBlock = buildContextBlock(context);
+        String userContent = buildUserContent(query, contextBlock, conversationHistory);
+
+        List<ChatCompletionRequest.ChatMessage> messages = new ArrayList<>();
+        messages.add(ChatCompletionRequest.ChatMessage.builder().role("system").content(systemPrompt).build());
+        messages.add(ChatCompletionRequest.ChatMessage.builder().role("user").content(userContent).build());
+
+        return chatModelClient.stream(ChatCompletionRequest.builder().messages(messages).build());
+    }
+
     private String buildContextBlock(List<SearchResult> context) {
-        if (context.isEmpty()) {
-            return "(No relevant documents found.)";
-        }
+        if (context.isEmpty()) return "(No relevant documents found.)";
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < context.size(); i++) {
             SearchResult r = context.get(i);

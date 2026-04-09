@@ -1,5 +1,7 @@
 package io.innovation.ekoc.teams.service;
 
+import io.innovation.ekoc.audit.annotation.Auditable;
+import io.innovation.ekoc.audit.domain.AuditAction;
 import io.innovation.ekoc.shared.exception.BusinessException;
 import io.innovation.ekoc.shared.exception.ResourceNotFoundException;
 import io.innovation.ekoc.teams.domain.Team;
@@ -32,6 +34,7 @@ public class TeamService {
     private final TeamMemberRepository teamMemberRepository;
     private final UserService userService;
 
+    @Auditable(action = AuditAction.TEAM_CREATE, resource = "Team")
     @Transactional
     public TeamDTO createTeam(CreateTeamRequest request, String creatorUsername) {
         if (teamRepository.existsByName(request.getName())) {
@@ -74,6 +77,7 @@ public class TeamService {
                 .toList();
     }
 
+    @Auditable(action = AuditAction.TEAM_UPDATE, resource = "Team")
     @Transactional
     public void addMember(UUID teamId, AddMemberRequest request, String requestingUsername) {
         Team team = findTeamById(teamId);
@@ -93,6 +97,7 @@ public class TeamService {
         log.info("User {} added to team {} as {}", request.getUsername(), team.getName(), membership.getRole());
     }
 
+    @Auditable(action = AuditAction.TEAM_UPDATE, resource = "Team")
     @Transactional
     public void removeMember(UUID teamId, UUID userId, String requestingUsername) {
         requireOwnerOrAdmin(teamId, requestingUsername);

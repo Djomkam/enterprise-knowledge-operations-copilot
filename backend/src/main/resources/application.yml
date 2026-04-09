@@ -45,12 +45,23 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
 
-# Security
+  # Keycloak / OAuth2 resource server (activated when KEYCLOAK_ISSUER_URI is set)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:}
+
+# Security — local / test profile uses hand-rolled JWT; docker profile uses Keycloak.
+# Set KEYCLOAK_ISSUER_URI to activate Keycloak validation (disables the local JWT filter).
 security:
   jwt:
     secret: ${JWT_SECRET:change-this-secret-in-production-min-256-bits}
     expiration: ${JWT_EXPIRATION:86400000} # 24 hours in ms
     refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in ms
+
+keycloak:
+  client-id: ${KEYCLOAK_CLIENT_ID:ekoc-frontend}
 
 # MinIO
 minio:
@@ -113,7 +124,7 @@ logging:
   level:
     root: INFO
     io.innovation.ekoc: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: WARN
     org.springframework.web: INFO
   file:
     name: logs/application.log

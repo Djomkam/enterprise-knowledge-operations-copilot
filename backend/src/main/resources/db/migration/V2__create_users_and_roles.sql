@@ -45,13 +45,5 @@ INSERT INTO roles (id, name, description, created_by) VALUES
     (uuid_generate_v4(), 'USER', 'Regular user with standard access', 'system'),
     (uuid_generate_v4(), 'ANALYST', 'Analyst with read-only access', 'system');
 
--- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION)
--- BCrypt hash for 'admin123' with strength 12
-INSERT INTO users (id, username, email, password, full_name, created_by) VALUES
-    (uuid_generate_v4(), 'admin', 'admin@ekoc.local', '$2a$12$d3i1KXtFoocgVkiPogsLMujA8l9IZmQB3bwbsqQ7nJ..U2mTaTr62', 'System Administrator', 'system');
-
--- Assign ADMIN role to admin user
-INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id
-FROM users u, roles r
-WHERE u.username = 'admin' AND r.name = 'ADMIN';
+-- Default admin user is seeded only for local development via DevDataSeeder (@Profile("local")).
+-- Do NOT add default credentials here — this migration runs in all environments.

@@ -1,5 +1,6 @@
 package io.innovation.ekoc.documents.controller;
 
+import io.innovation.ekoc.documents.dto.AssignTeamRequest;
 import io.innovation.ekoc.documents.dto.DocumentDTO;
 import io.innovation.ekoc.documents.dto.UploadDocumentRequest;
 import io.innovation.ekoc.shared.dto.ApiResponse;
@@ -33,7 +34,7 @@ public class DocumentController {
 
     private final DocumentService documentService;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = {"/upload", ""}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload a document for ingestion")
     public ResponseEntity<ApiResponse<DocumentDTO>> upload(
             @RequestPart("file") MultipartFile file,
@@ -79,9 +80,16 @@ public class DocumentController {
     @Operation(summary = "Assign or unassign a document to a team")
     public ResponseEntity<ApiResponse<DocumentDTO>> assignTeam(
             @PathVariable UUID documentId,
-            @RequestParam(required = false) UUID teamId) {
-        DocumentDTO doc = documentService.assignToTeam(documentId, teamId, currentUser());
+            @RequestBody AssignTeamRequest body) {
+        DocumentDTO doc = documentService.assignToTeam(documentId, body.getTeamId(), currentUser());
         return ResponseEntity.ok(ApiResponse.success(doc));
+    }
+
+    @GetMapping("/{documentId}/versions")
+    @Operation(summary = "Get version history for a document")
+    public ResponseEntity<ApiResponse<java.util.List<DocumentDTO>>> versions(@PathVariable UUID documentId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                documentService.getVersionHistory(documentId, currentUser())));
     }
 
     private String currentUser() {
