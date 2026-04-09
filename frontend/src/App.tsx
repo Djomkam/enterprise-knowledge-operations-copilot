@@ -5,6 +5,8 @@ import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
 import ChatPage from './pages/ChatPage'
 import AdminPage from './pages/AdminPage'
+import AnalyticsPage from './pages/AnalyticsPage'
+import PromptTemplatesPage from './pages/PromptTemplatesPage'
 import Layout from './components/layout/Layout'
 import PrivateRoute from './components/auth/PrivateRoute'
 
@@ -22,6 +24,8 @@ function App() {
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/prompt-templates" element={<PromptTemplatesPage />} />
         </Route>
       </Route>
 

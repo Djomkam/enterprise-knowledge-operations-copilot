@@ -6,6 +6,8 @@ const Sidebar = () => {
     { path: '/documents', label: 'Documents' },
     { path: '/chat', label: 'Chat' },
     { path: '/admin', label: 'Admin' },
+    { path: '/analytics', label: 'Analytics' },
+    { path: '/prompt-templates', label: 'Prompt Templates' },
   ]
 
   return (

@@ -6,6 +6,8 @@ import io.innovation.ekoc.users.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "documents", indexes = {
         @Index(name = "idx_doc_status", columnList = "status"),
@@ -55,4 +57,13 @@ public class Document extends BaseEntity {
 
     @Column(length = 2000)
     private String errorMessage;
+
+    /** UUID of the root document in this version chain (null = this is the root). */
+    @Column(name = "parent_id")
+    private UUID parentId;
+
+    /** Business version counter (1-based); incremented on each re-upload. */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer versionNumber = 1;
 }

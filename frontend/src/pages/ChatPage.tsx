@@ -75,7 +75,7 @@ const ChatPage = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || sending) return
     const text = input.trim()
@@ -83,37 +83,39 @@ const ChatPage = () => {
     setSending(true)
 
     // Optimistic user message
-    const tempId = `temp-${Date.now()}`
-    setMessages(prev => [...prev, { id: tempId, role: 'user', content: text, createdAt: new Date().toISOString() }])
+    const tempUserMsgId = `temp-user-${Date.now()}`
+    const streamingMsgId = `streaming-${Date.now()}`
+    setMessages(prev => [
+      ...prev,
+      { id: tempUserMsgId, role: 'user', content: text, createdAt: new Date().toISOString() },
+      { id: streamingMsgId, role: 'assistant', content: '', createdAt: new Date().toISOString() },
+    ])
 
-    try {
-      const response = await chatApi.sendMessage({ conversationId: activeId ?? undefined, message: text })
-      if (!activeId) {
-        setActiveId(response.conversationId)
-        fetchConversations()
-      }
-      // Store citations keyed by assistant message id
-      if (response.citations?.length) {
-        setCitations(prev => ({ ...prev, [response.messageId]: response.citations! }))
-      }
-      setMessages(prev => {
-        const withoutTemp = prev.filter(m => m.id !== tempId)
-        return [
-          ...withoutTemp,
-          { id: response.messageId, role: 'assistant', content: response.content, createdAt: new Date().toISOString() },
-        ]
-      })
-    } catch {
-      setMessages(prev => prev.filter(m => m.id !== tempId))
-      setMessages(prev => [...prev, {
-        id: `err-${Date.now()}`,
-        role: 'assistant',
-        content: 'Sorry, something went wrong. Please try again.',
-        createdAt: new Date().toISOString(),
-      }])
-    } finally {
-      setSending(false)
-    }
+    chatApi.streamMessage(
+      { conversationId: activeId ?? undefined, message: text },
+      (token) => {
+        // Append each token to the streaming assistant message
+        setMessages(prev => prev.map(m =>
+          m.id === streamingMsgId ? { ...m, content: m.content + token } : m
+        ))
+      },
+      (conversationId) => {
+        // Stream complete — update with final conversationId, refresh list
+        if (!activeId) {
+          setActiveId(conversationId)
+          fetchConversations()
+        }
+        setSending(false)
+      },
+      (_err) => {
+        setMessages(prev => prev.map(m =>
+          m.id === streamingMsgId
+            ? { ...m, content: 'Sorry, something went wrong. Please try again.' }
+            : m
+        ))
+        setSending(false)
+      },
+    )
   }
 
   const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
@@ -210,10 +212,11 @@ const ChatPage = () => {
                 )}
               </div>
             ))}
-            {sending && (
+            {/* Streaming cursor: shown while sending and the last message is an empty assistant placeholder */}
+            {sending && messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].content === '' && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                 <div style={{ padding: '0.75rem 1rem', borderRadius: '16px 16px 16px 4px', backgroundColor: '#f3f4f6', color: '#6b7280', fontSize: '0.9rem' }}>
-                  Thinking...
+                  ▌
                 </div>
               </div>
             )}

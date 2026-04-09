@@ -1,0 +1,32 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+      - org.springframework.ai.autoconfigure.openai.OpenAiChatAutoConfiguration
+      - org.springframework.ai.autoconfigure.openai.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.autoconfigure.vectorstore.pgvector.PgVectorStoreAutoConfiguration
+      - org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+# Disable AI providers for tests
+ai:
+  provider: none
+
+# MinIO test config (not started in tests)
+minio:
+  endpoint: http://localhost:9090
+  access-key: minioadmin
+  secret-key: minioadmin
+
+# Security test config
+security:
+  jwt:
+    secret: test-secret-key-for-testing-minimum-256-bits-hs512-algorithm-requirement
+    expiration: 86400000

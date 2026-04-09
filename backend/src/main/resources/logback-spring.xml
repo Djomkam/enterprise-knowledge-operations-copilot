@@ -59,10 +59,18 @@
         <appender-ref ref="FILE"/>
     </logger>
 
-    <logger name="org.springframework.security" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </logger>
+    <springProfile name="local">
+        <logger name="org.springframework.security" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </logger>
+    </springProfile>
+    <springProfile name="!local">
+        <logger name="org.springframework.security" level="WARN" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </logger>
+    </springProfile>
 
     <logger name="org.springframework.web" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>

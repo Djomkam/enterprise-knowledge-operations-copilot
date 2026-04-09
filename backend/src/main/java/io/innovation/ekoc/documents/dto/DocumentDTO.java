@@ -26,6 +26,8 @@ public class DocumentDTO {
     private UUID teamId;
     private String teamName;
     private Integer chunkCount;
+    private UUID parentId;
+    private Integer versionNumber;
     private Instant createdAt;
     private Instant updatedAt;
 }

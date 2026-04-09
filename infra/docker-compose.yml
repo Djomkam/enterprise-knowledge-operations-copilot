@@ -1,4 +1,32 @@
 services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    container_name: ekoc-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ekoc
+      KC_DB_PASSWORD: ekoc
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ./docker/keycloak/ekoc-realm.json:/opt/keycloak/data/import/ekoc-realm.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
   postgres:
     image: pgvector/pgvector:pg16
     container_name: ekoc-postgres
@@ -91,6 +119,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production-at-least-256-bits-long-for-hs512}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ekoc
+      KEYCLOAK_CLIENT_ID: ekoc-frontend
     ports:
       - "8080:8080"
     depends_on:
@@ -101,6 +131,8 @@ services:
       minio:
         condition: service_healthy
       ollama:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     restart: unless-stopped
 
@@ -122,3 +154,4 @@ volumes:
   rabbitmq_data:
   minio_data:
   ollama_data:
+  keycloak_data:

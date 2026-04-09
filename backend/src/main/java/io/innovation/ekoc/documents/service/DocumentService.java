@@ -1,6 +1,9 @@
 package io.innovation.ekoc.documents.service;
 
+import io.innovation.ekoc.audit.annotation.Auditable;
+import io.innovation.ekoc.audit.domain.AuditAction;
 import io.innovation.ekoc.config.IngestionConfig;
+import org.springframework.security.access.prepost.PreAuthorize;
 import io.innovation.ekoc.config.RabbitMQConfig;
 import io.innovation.ekoc.documents.domain.Document;
 import io.innovation.ekoc.documents.domain.DocumentStatus;
@@ -12,6 +15,7 @@ import io.innovation.ekoc.ingestion.dto.IngestionEvent;
 import io.innovation.ekoc.shared.exception.BusinessException;
 import io.innovation.ekoc.shared.exception.ResourceNotFoundException;
 import io.innovation.ekoc.teams.domain.Team;
+import io.innovation.ekoc.teams.repository.TeamMemberRepository;
 import io.innovation.ekoc.teams.repository.TeamRepository;
 import io.innovation.ekoc.users.domain.User;
 import io.innovation.ekoc.users.service.UserService;
@@ -38,9 +42,11 @@ public class DocumentService {
     private final DocumentStorageService storageService;
     private final UserService userService;
     private final TeamRepository teamRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final RabbitTemplate rabbitTemplate;
     private final IngestionConfig ingestionConfig;
 
+    @Auditable(action = AuditAction.DOCUMENT_UPLOAD, resource = "Document")
     @Transactional
     public DocumentDTO upload(MultipartFile file, UploadDocumentRequest request, String username) {
         validateContentType(file.getContentType());
@@ -48,44 +54,66 @@ public class DocumentService {
         User owner = userService.findByUsername(username);
         Team team = resolveTeam(request.getTeamId());
 
-        // Persist record with PENDING status first to get the UUID for the storage key
+        // Detect re-upload: same filename by same owner → create a new version
+        String fileName = file.getOriginalFilename();
+        int nextVersion = 1;
+        UUID parentId = null;
+        var existing = documentRepository.findTopByFileNameAndOwnerIdOrderByVersionNumberDesc(fileName, owner.getId());
+        if (existing.isPresent()) {
+            Document prev = existing.get();
+            parentId = prev.getParentId() != null ? prev.getParentId() : prev.getId();
+            nextVersion = prev.getVersionNumber() + 1;
+            log.info("Re-upload of '{}': creating version {} (root={})", fileName, nextVersion, parentId);
+        }
+
         Document document = Document.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .fileName(file.getOriginalFilename())
+                .fileName(fileName)
                 .contentType(file.getContentType())
                 .fileSizeBytes(file.getSize())
-                .storageKey("pending") // placeholder until uploaded
+                .storageKey("pending")
                 .owner(owner)
                 .team(team)
+                .parentId(parentId)
+                .versionNumber(nextVersion)
                 .build();
         document = documentRepository.save(document);
 
-        // Upload to MinIO and update the storage key
         String storageKey = storageService.store(file, document.getId());
         document.setStorageKey(storageKey);
         document = documentRepository.save(document);
 
-        // Publish ingestion event for async processing
         IngestionEvent event = IngestionEvent.builder()
                 .documentId(document.getId())
                 .storageKey(storageKey)
                 .contentType(file.getContentType())
-                .fileName(file.getOriginalFilename())
+                .fileName(fileName)
                 .build();
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.INGESTION_EXCHANGE,
                 RabbitMQConfig.INGESTION_ROUTING_KEY,
                 event);
 
-        log.info("Document {} uploaded by {}, ingestion queued", document.getId(), username);
+        log.info("Document {} v{} uploaded by {}, ingestion queued", document.getId(), nextVersion, username);
         return toDTO(document);
     }
 
+    @PreAuthorize("@documentAcl.canRead(authentication, #documentId)")
     @Transactional(readOnly = true)
     public DocumentDTO getDocument(UUID documentId, String username) {
         Document document = findAndVerifyAccess(documentId, username);
         return toDTO(document);
+    }
+
+    /** Returns all versions (oldest first) of the document chain containing {@code documentId}. */
+    @PreAuthorize("@documentAcl.canRead(authentication, #documentId)")
+    @Transactional(readOnly = true)
+    public List<DocumentDTO> getVersionHistory(UUID documentId, String username) {
+        Document doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document", "id", documentId));
+        UUID rootId = doc.getParentId() != null ? doc.getParentId() : doc.getId();
+        return documentRepository.findVersionHistory(rootId).stream().map(this::toDTO).toList();
     }
 
     @Transactional(readOnly = true)
@@ -106,18 +134,14 @@ public class DocumentService {
         return documents.map(this::toDTO);
     }
 
+    @PreAuthorize("@documentAcl.canDelete(authentication, #documentId)")
+    @Auditable(action = AuditAction.DOCUMENT_DELETE, resource = "Document")
     @Transactional
     public void deleteDocument(UUID documentId, String username) {
         Document document = findAndVerifyAccess(documentId, username);
-
-        // Delete from MinIO (best-effort; don't fail the whole operation if storage delete fails)
         storageService.delete(document.getStorageKey());
-
-        // Cascade: chunks deleted via DB cascade (FK ON DELETE CASCADE),
-        // but explicitly deleting here ensures JPA cache is clean.
         chunkRepository.deleteByDocumentId(documentId);
         documentRepository.delete(document);
-
         log.info("Document {} deleted by {}", documentId, username);
     }
 
@@ -162,10 +186,9 @@ public class DocumentService {
     }
 
     private List<UUID> getTeamIds(User user) {
-        return teamRepository.findAll().stream()
-                .filter(t -> t.isActive())
-                .map(Team::getId)
-                .toList(); // simplified — production should query team_members directly
+        return teamMemberRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+                .map(tm -> tm.getTeam().getId())
+                .toList();
     }
 
     private DocumentDTO toDTO(Document doc) {
@@ -182,6 +205,8 @@ public class DocumentService {
                 .teamId(doc.getTeam() != null ? doc.getTeam().getId() : null)
                 .teamName(doc.getTeam() != null ? doc.getTeam().getName() : null)
                 .chunkCount(doc.getChunkCount())
+                .parentId(doc.getParentId())
+                .versionNumber(doc.getVersionNumber())
                 .createdAt(doc.getCreatedAt())
                 .updatedAt(doc.getUpdatedAt())
                 .build();

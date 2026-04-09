@@ -19,6 +19,10 @@ public class RetrievalService {
     private final VectorSearchService vectorSearchService;
     private final AIConfig aiConfig;
 
+    /**
+     * Retrieves relevant document chunks for a query using hybrid search
+     * (dense vector + sparse BM25-trigram, fused via Reciprocal Rank Fusion).
+     */
     public List<SearchResult> retrieve(SearchRequest request) {
         log.debug("Retrieving context for query: {}", request.getQuery());
 
@@ -32,12 +36,16 @@ public class RetrievalService {
                 ? request.getSimilarityThreshold()
                 : aiConfig.getRetrieval().getSimilarityThreshold();
 
-        List<SearchResult> results = vectorSearchService.search(
-                queryEmbedding, threshold, topK,
+        List<SearchResult> results = vectorSearchService.hybridSearch(
+                queryEmbedding,
+                request.getQuery(),
+                threshold,
+                topK,
                 request.getDocumentIds(),
-                request.getTeamIds());
+                request.getTeamIds(),
+                request.getUserId());
 
-        log.debug("Retrieved {} results for query", results.size());
+        log.debug("Retrieved {} results for query (hybrid search)", results.size());
         return results;
     }
 }
